@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    {# スマホ向けの設定　content内の設定はそれぞれデバイス幅に調整、最初の拡大率を100%に、スマホのノッチ部分などへのフィット #}
+    <title>ログイン - Spotter_camp</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+    {# Bootstrap CSSの読み込み（CDNから） #}
+
+    <script src="https://kit.fontawesome.com/a3f66f1b0c.js" crossorigin="anonymous"></script>
+    {# Font Awesomeの読み込み #}
+</head>
+
+<body class="bg-light d-flex align-items-center min-vh-100">
+    {# 背景色を薄いグレーに、縦方向中央寄せ、最小高さは画面の高さ #}
+
+    <div class="container"> {# コンテナ作成、なくてもいいが自動で余白が入り見た目が整う #}
+        <div class="row justify-content-center"> {# グリッド行、中央寄せ #}
+            <div class="col-md-6 col-lg-4"> {# 画面サイズによる自動幅調整、小画面は指定しないと100%幅 #}
+                <div class="card shadow"> {# カード表示、よくある中央にペラッと浮かんだUI 影付き #}
+                    <div class="card-body p-4"> {# カードの中身 パディング付き #}
+
+                        {# ロゴを中央に配置 #}
+                        <div class="text-center mb-4"> {# 中央寄せ ボトムマージン付き #}
+                            <img src="{{ url_for('static', filename='img/logo_tr.png') }}" height="80" class="mb-3"> {#
+                            ロゴ画像、高さ指定、ボトムマージン付き #}
+                            <h2 class="fw-semibold">ログイン</h2> {# 見出し文字、少し太字の指定 #}
+                        </div>
+
+                        {% for message in get_flashed_messages() %}
+                            {% if "成功" in message %}
+                                <div class="alert alert-success"> {# アラート機能alert-successで緑色 #}
+                            {% else %}
+                                <div class="alert alert-danger"> {# アラート機能alert-dangerで赤色 #}
+                            {% endif %}
+                                    {{ message }} {# メッセージ本文 #}
+                                </div>
+                        {% endfor %}
+
+                        <form method="POST"> {# 同じURLにPOSTするform作成 #}
+                            <div class="mb-3"> {# 入力項目作成、ボトムマージン付き #}
+                                <label for="email" class="form-label">メールアドレス</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                                {# email入力欄、入力必須（required）#}
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">パスワード</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <div class="d-grid"> {# 子のボタンを幅いっぱいに表示 #}
+                                <button type="submit" class="btn btn-primary">ログイン</button> {# 登録ボタン #}
+                            </div>
+                        </form>
+
+                        <hr class="my-4"> {# 区切り線、上下マージン付き #}
+
+                        <div class="text-center"> {# テキスト中央寄せ #}
+                            <p class="mb-0">アカウントをお持ちでない方は</p>
+                            <a href="{{ url_for('auth.register') }}" class="btn btn-outline-secondary mt-2">新規登録</a>
+                            {# 登録画面への遷移ボタン #}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script> {# Bootstrapの呼び出し #}
+</body>
+
+</html>

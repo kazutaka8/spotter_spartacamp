@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>新規登録 - Spotter_camp</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+    <script src="https://kit.fontawesome.com/a3f66f1b0c.js" crossorigin="anonymous"></script>
+    {# FontawesomeとBootstrapの読み込み #}
+</head>
+
+<body class="bg-light d-flex align-items-center min-vh-100"> {# 背景薄グレーの中央寄せ、高さは画面幅いっぱい #}
+    <div class="container"> {# コンテナ要素、なくてもいいが自動で余白が入り見た目がいい #}
+        <div class="row justify-content-center"> {# グリッド行、中央寄せ #}
+            <div class="col-md-6 col-lg-4"> {# 画面幅によってサイズを可変にする。省略しているサイズ（小）は自動で100%表示になる #}
+                <div class="card shadow"> {# カード表示、よく見るペラッとしたものが浮いているように見せる　影付き #}
+                    <div class="card-body p-4"> {# カードの中身 パディング付き #}
+                        <div class="text-center mb-4"> {# ロゴと新規登録の記載 #}
+                            <img src="{{ url_for('static', filename='img/logo_tr.png') }}" height="80" class="mb-3">
+                            <h2 class="fw-semibold">新規登録</h2>
+                        </div>
+
+                        {% for message in get_flashed_messages() %}
+                            {% if "成功" in message %}
+                                <div class="alert alert-success"> {# アラート機能alert-successで緑色 #}
+                            {% else %}
+                                <div class="alert alert-danger"> {# アラート機能alert-dangerで赤色 #}
+                            {% endif %}
+                                    {{ message }} {# メッセージ本文 #}
+                                </div>
+                        {% endfor %}
+
+                        <form method="POST"> {# 現在のURLにPOST表示するform作成 以下ログイン画面と同様#}
+                            <div class="mb-3">
+                                <label for="name" class="form-label">ユーザー名</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">メールアドレス</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">パスワード</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password_confirm" class="form-label">パスワード確認</label>
+                                <input type="password" class="form-control" id="password_confirm"
+                                    name="password_confirm" required>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">アカウント作成</button>
+                            </div>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <div class="text-center"> {# 登録済みの人向けのログイン画面へのリンク #}
+                            <p class="mb-0">すでにアカウントをお持ちの方は</p>
+                            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary mt-2">ログイン</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous">
+        </script> {# Bootstrapの指定 #}
+</body>
+
+</html>
