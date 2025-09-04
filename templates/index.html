@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    {# スマホ向けの設定　content内の設定はそれぞれデバイス幅に調整、最初の拡大率を100%に、スマホのノッチ部分などへのフィット #}
+    <title>Spotter_spartacamp</title>
+    {# タイトル #}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+    {# Bootstrap CSSの読み込み（CDNから） #}
+    <script src="https://kit.fontawesome.com/a3f66f1b0c.js" crossorigin="anonymous"></script>
+    {# Font Awesomeの読み込み #}
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    {# MapBOX用のCSS #}
+    <style>
+        .btn-xs {
+            --bs-btn-padding-y: .1rem;
+            --bs-btn-padding-x: .25rem;
+            --bs-btn-font-size: .85rem;
+            --bs-btn-border-radius: .15rem;
+        }
+
+        .user-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-icon-large {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .header-user-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        @media (max-width: 576px) {
+            .detail-main-image img {
+                width: 60px !important;
+                height: 60px !important;
+            }
+            
+            .reply-user-icon {
+                width: 20px !important;
+                height: 20px !important;
+                font-size: 20px !important;
+            }
+        }
+    </style>
+    {# ボタン作成用のスタイル BSのクラスで指定できるサイズ以下にしたいので仕方なく作成する #}
+    {# ユーザーアイコンも微調整したかったので仕方なく作成する object-fitはアスペクト比が1:1じゃなくても適切にトリミングしてくれる #}
+    {# 画像サイズを画面幅で切り替えるための指示もしておく #}
+</head>
+
+<body class="d-flex flex-column vh-100">
+    {# 縦方向のフレックス並び、高さはディスプレイ一杯 #}
+
+
+    {# ---------------------------------------------------------------
+    ---------------------------------------------------------------
+    ヘッダー描画範囲
+    ---------------------------------------------------------------
+    --------------------------------------------------------------- #}
+
+
+    <header>
+        <nav class="navbar navbar-expand bg-body-tertiary border-bottom border-secondary">
+            {# appbar(ナビバー)の設定 プロパティは順に、無いと画面が狭い時にレイアウトが崩れる、背景色、下線を入れる, 下線の色指定 #}
+            <div class="container-fluid align-items-center gap-2">
+                {# 幅いっぱいに広がる（fluid水のように） 子要素は中央揃えで配置 要素間は2開ける #}
+                <a class="navbar-brand">
+                    {# ブランド表示 なくてもいいけどBS的には推奨らしい 文字を入れるならあると調整してくれる #}
+                    <img src="{{ url_for('static', filename='img/logo_tr.png') }}" height="45" class="d-inline-block">
+                    {# flaskの画像呼び出し staticフォルダからロゴ #}
+                    {# d-inline-blockは画像のデフォルトがinline要素（文字）なので行間などが自動で設定され揃えにくいからblockに変換 #}
+                </a>
+
+                <form class="flex-grow-1 border border-secondary rounded me-auto" style="max-width:640px;">
+                    {# 左にロゴ、右にユーザーアイコンを設置し、余りの中央に検索ボックス配置(flex-grow-1)、長すぎると邪魔なので最大幅指定
+                    me-autoで左寄せにする（mergin end autoで右側に余白を自動で追加）#}
+                    <input class="form-control" type="serch" placeholder="タイトル・タグを検索">
+                    {# 今は飾り　後で検索機能追加 #}
+                </form>
+
+                {% if not current_user.is_authenticated %}
+                <a href="{{ url_for('auth.login') }}" class="text-decoration-none">login</a>
+                {% else %}
+                <a href="#" onclick="confirmLogout()" class="text-decoration-none">{{ current_user.name }}</a>
+                {% endif %}
+                {# ログインしていればユーザー名（クリックでログアウト処理JS:confirmLogout）、していなければログインボタン表示 class名はリンクの下線を消してくれる #}
+
+                {% if current_user.is_authenticated and current_user.icon %}
+                <img src="/uploads/icon/{{ current_user.icon }}" class="user-icon-large">
+                {% else %}
+                <i class="fa-solid fa-circle-user" style="font-size:40px; color: rgb(99, 99, 99);"></i>
+                {% endif %}
+                {# ユーザーアイコンの表示　後から各所メニューが開くようにするかも アイコンのないユーザーはデフォルト表示#}
+            </div>
+        </nav>
+    </header>
+
+
+    {# ---------------------------------------------------------------
+    ---------------------------------------------------------------
+    メイン描画範囲
+    main内に書いたものがこのアプリの主要要素になる（検索とかSEO的に）
+    別にbody内であればどこに書いても挙動は変わらないらしい
+    spotterでは初期画面に見えている要素をmainに書いているつもり
+    ---------------------------------------------------------------
+    --------------------------------------------------------------- #}
+
+
+    <main class="flex-grow-1 position-relative">
+        {# 横幅いっぱいに表示 positionは子要素のabsolute位置の基準にするという指示　これがないとheader含めた画面全体が基準になってしまう #}
+
+
+        {# ---------------------------------------------------------------
+        マップ本体とカテゴリーボタン群
+        --------------------------------------------------------------- #}
+
+
+        <div id="map" class="w-100 h-100"></div>
+        {# マップ本体　このidタグに紐づいてJSが動作する #}
+
+        <div class="d-flex position-absolute gap-2 top-0 start-0 end-0 p-2"
+            style="overflow-x: auto; white-space: nowrap; pointer-events: none; z-index: 3;">
+            {# カテゴリボタンの横スクロール設定 autoだと表示領域に収まらない場合にスクロール white-spaceで折り返さないように
+            pointer-eventsでカテゴリー行はクリックやタップが透過するようにする（つけないとカテゴリーボタンがある行はドラッグ操作ができない。） #}
+            <button type="button" class="btn btn-light btn-sm border border-secondary" style="pointer-events: auto">
+                {# pointer-eventsで親タグで無効にしたクリック操作をボタン上でのみ有効化する #}
+                <i class="fa-solid fa-mountain-sun"></i> 観光
+            </button>
+            <button type="button" class="btn btn-light btn-sm border border-secondary" style="pointer-events: auto">
+                <i class="fa-solid fa-utensils"></i> 食事
+            </button>
+            <button type="button" class="btn btn-light btn-sm border border-secondary" style="pointer-events: auto">
+                <i class="fa-solid fa-baseball-bat-ball"></i> 体験
+            </button>
+            <button type="button" class="btn btn-light btn-sm border border-secondary" style="pointer-events: auto">
+                <i class="fa-solid fa-calendar-days"></i> イベント
+            </button>
+            <button type="button" class="btn btn-light btn-sm border border-secondary" style="pointer-events: auto">
+                <i class="fa-solid fa-bolt"></i> 危険
+            </button>
+        </div>
+
+
+        {# ---------------------------------------------------------------
+        スポット登録で操作するボタン群
+        --------------------------------------------------------------- #}
+
+
+        <div id="targetCrosshair" class="position-absolute top-50 start-50 translate-middle d-none"
+            style="pointer-events:none; z-index:4;">
+            <i class="fa-solid fa-crosshairs" style="font-size:40px; color:#0d6efd;"></i>
+        </div>
+        {# あとで表示させるクロスヘアーマーカー 中央配置中央寄せ、非表示設定 アイコン上でもマップのドラッグを有効　画面の前後順IDを指定 #}
+        {# translate-middleがないと画像の左上が画面中央にくる #}
+
+        <div class="position-absolute bottom-0 end-0 mb-4 me-3" style="z-index:5;">
+            <button id="addSpotCancelBtn" class="btn btn-secondary shadow d-none">キャンセル</button>
+            <button id="addSpotBtn" class="btn btn-primary rounded-circle shadow" style="width:48px;height:48px;">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+            <button id="confirmSpotBtn" class="btn btn-success ms-2 d-none">この位置で登録</button>
+        </div>
+        {# スポット登録時に操作するボタン群３つ JSで描写を管理するので一部はデフォルトが非表示(d-none) #}
+
+    </main>
+
+
+    {# ---------------------------------------------------------------
+    スポット登録時のモーダル表示
+    --------------------------------------------------------------- #}
+
+
+    <div class="modal fade" id="spotModal" tabindex="-1">
+        {# BSのモーダル fadeはアニメーション付与
+        tabindex=-1はユーザー操作でフォーカスが当たらないようにし、JSでフォーカスするとこのモーダル内部にフォーカスが閉じ込められるようになる
+        表示されていない隠し要素のモーダルにフォーカスできたらおかしいし、モーダル操作時に背景にフォーカスが当たってもおかしいから必要 #}
+        <div class="modal-dialog modal-dialog-centered"> {# モーダル外枠 #}
+            <div class="modal-content"> {# モーダル本体 #}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="spotModalLabel">地点を登録</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="spotForm">
+                        <div class="mb-2 small text-body-secondary">取得座標： <code id="coordDisplay">-- , --</code>
+                        </div> {# クロスヘアで指定した座標を表示 初期表示からあとでJSで入れ替え #}
+                        {# 以下入力欄 #}
+                        <div class="mb-3"><label class="form-label">タイトル</label><input type="text" class="form-control"
+                                id="spotTitle" required placeholder="スポットのタイトル"></div>
+                        <div class="mb-3"><label class="form-label">写真</label><input type="file" class="form-control"
+                                id="spotImage" accept="image/*">
+                            <div class="form-text">画像ファイルを選択してください</div>
+                        </div> {# type=fileでファイル選択になる acceptで画像ファイルのみに限定 サーバー側でも本来はチェックすべきらしい #}
+                        <div class="mb-3"><label class="form-label">コメント</label><textarea class="form-control"
+                                id="spotComment" rows="3" placeholder="コメントを入力"></textarea></div>
+                        <div class="mb-3"><label class="form-label">カテゴリー</label>
+                            <select class="form-select" id="spotCategory">
+                                <option value="観光">観光</option>
+                                <option value="食事">食事</option>
+                                <option value="体験">体験</option>
+                                <option value="イベント">イベント</option>
+                                <option value="危険">危険</option>
+                            </select> {# プルダウン式の選択項目 #}
+                        </div>
+                        <div class="mb-3">{# ここからタグ入力欄 上から2,2,1で配置 #}
+                            <label class="form-label">タグ(任意)</label>
+                            <div class="row g-2">
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" id="spotTag1"
+                                        placeholder="タグ1"></div>
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" id="spotTag2"
+                                        placeholder="タグ2"></div>
+                            </div>
+                            <div class="row g-2 mt-1">
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" id="spotTag3"
+                                        placeholder="タグ3"></div>
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" id="spotTag4"
+                                        placeholder="タグ4"></div>
+                            </div>
+                            <div class="row g-2 mt-1">
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" id="spotTag5"
+                                        placeholder="タグ5"></div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">閉じる</button>
+                    <button type="button" class="btn btn-primary" id="submitSpotBtn">登録</button>
+                    {# dismissをつけないのは後でJSで処理を実行し、成功したら閉じるから　クリック時に閉じるわけではない #}
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    {# ---------------------------------------------------------------
+    スポットとグループで共通のキャンバス（後で中身入れ替え）
+    --------------------------------------------------------------- #}
+
+
+    {# グループ詳細表示用キャンバス（画面幅で左か下か切替。backdrop（モーダル開いた時に背景が暗くなること）無効） #}
+    <div class="offcanvas offcanvas-bottom" tabindex="-1" id="groupDetailOffcanvas" data-bs-backdrop="false"
+        style="--bs-offcanvas-height: 90vh; --bs-offcanvas-width: 420px; z-index: 1010;">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="groupDetailLabel">グループ詳細</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body"><!-- 共有テンプレからJSで差し込むため、ここは空にしておく --></div>
+    </div> {# ちなみにコメントアウトの方法としてここで使っているのは検証ツールで外部から見えるタイプ #}
+
+    {# スポット詳細表示用キャンバス（画面幅で左か下か切替。backdrop（モーダル開いた時に背景が暗くなること）無効） #}
+    <div class="offcanvas offcanvas-bottom" tabindex="-1" id="spotDetailOffcanvas" data-bs-backdrop="false"
+        style="--bs-offcanvas-height: 90vh; --bs-offcanvas-width: 420px; z-index: 1020;">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="spotDetailLabel">スポット詳細</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body"><!-- 共有テンプレからJSで差し込むため、ここは空にしておく --></div>
+    </div>
+
+
+    {# ---------------------------------------------------------------
+    共有テンプレート（スポット、グループ共通）
+    --------------------------------------------------------------- #}
+
+
+    {# スポット、グループ共有のテンプレート 画面には見えない隠しHTML 後で複製して使う #}
+    <template id="detail-canvas-tmpl">
+        <div class="vstack gap-3"> {# 縦方向のフレックス #}
+            <div class="d-flex gap-3 align-items-start"> {# フレックス、ギャップ、上端揃え #}
+                <div class="detail-main-image"> {# 冒頭に設定したstyleで画面幅により画像サイズ調整 #}
+                    <img class="object-fit-cover" width="120px" height="120px" style="border: 1px solid #dee2e6;">
+                    {# object-fit-coverは外枠（flex)に合わせてトリミングしてくれる, #dee2e6=BS標準のボーダー色 #}
+                </div>
+                
+                <div class="flex-grow-1"> {# 画像を入れて残りの幅いっぱいに使う #}
+                    <h5 class="mb-2 detail-title"></h5>
+                    <div class="d-flex align-items-center mb-2"> {# 中央揃え #}
+                        <div class="detail-user-icon" style="width: 32px; height: 32px; margin-right: 8px;">
+                            {# ユーザーアイコンまたはデフォルトアイコンをJS側で動的に挿入 #}
+                        </div>
+                        <div> {# ユーザー名と日時を縦に並べるコンテナ #}
+                            <div class="detail-user-name" style="font-size: 14px;"></div>
+                            <div class="detail-created-date text-body-secondary" style="font-size: 12px;"></div>
+                        </div>
+                    </div>
+                    <div class="detail-tags"></div> {# JSでカテゴリーとタグを入れ込む #}
+                </div>
+            </div>
+
+            {# コメント表示 pre-wrapがないとユーザー入力の改行が無視される #}
+            <div class="detail-description" style="white-space: pre-wrap;"></div>
+
+            {# リアクションボタンを入れるところ　カテゴリーによって場合分け #}
+            <div class="d-flex flex-wrap gap-2 detail-actions"></div>
+
+            <hr class="my-3">{# 区切り線 #}
+
+            {# 返信フォーム #}
+            <div class="detail-composer"> {# JS側で表示を制御する　ログインとか投稿済みとか #}
+                <h6 class="mb-2">返信を投稿</h6>
+                <textarea class="form-control mb-2" rows="3" placeholder="コメントを入力してください..."></textarea>
+                <input type="file" class="form-control mb-2" accept="image/*" style="font-size: 14px;">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm composer-submit">返信を投稿</button>
+                </div>
+            </div>
+
+            <hr class="my-3"> {# 区切り線 #}
+
+            {# 返信表示 #}
+            <div>
+                <h6 class="mb-3">返信 (<span class="detail-reply-count">0</span>件)</h6> {# 後でspan要素のみJSで変更する書き方 #}
+                <div class="detail-replies">返信を読み込み中...</div>
+            </div>
+        </div>
+    </template>
+
+
+    {# ---------------------------------------------------------------
+    ---------------------------------------------------------------
+    スクリプト、JS（ライブラリ）
+    ---------------------------------------------------------------
+    --------------------------------------------------------------- #}
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+    {# BootstrapのJS #}
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    {# MapBOX本体 #}
+    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-language/v1.0.0/mapbox-gl-language.js'></script>
+    {# 日本語のプラグイン #}
+
+
+    {# ---------------------------------------------------------------
+    HTMLが読み込まれた直後に実行されるスクリプト群
+    --------------------------------------------------------------- #}
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // HTML要素が読み込まれてからスクリプトを実行するための指示 そうでないと対象がないまま読み込みにいきNULLエラーの原因になる
+
+            mapboxgl.accessToken = 'pk.eyJ1Ijoia2F6dXRha2E4IiwiYSI6ImNtZXI2bjlrMjAzaTQybHB4anZlajFza2IifQ.sa7GHtssTL755Wgx_hCLtA';
+            // MapBOXアックセストークン 公開用なので直書きOK
+
+
+            // ---------------------------------------------------------------
+            // MapBOXの描写
+            // ---------------------------------------------------------------
+
+
+            const map = new mapboxgl.Map({
+                // ここがMap本体の描画
+                container: 'map',                             // mainタグにあるid=mapに対応して地図を表示する
+                style: 'mapbox://styles/mapbox/streets-v12',  // 地図スタイル
+                center: [141.0180, 39.9057],                  // 初期中心
+                zoom: 14,                                     // 初期ズーム
+                attributionControl: true                      // 右下の帰属表示
+            });
+            map.addControl(new MapboxLanguage()); //日本語化
+            map.addControl(new mapboxgl.NavigationControl(), 'top-right'); //ズーム・回転コントロールを右上に配置
+            map.addControl(new mapboxgl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: true }), 'top-right');
+            // 現在地の取得ボタンを右上に配置
+            // enableHighAccuracy:高精度な位置情報取得、falseだと省電力モード
+            // trackUserLocation:位置情報の移動を追随
+
+
+            // ---------------------------------------------------------------
+            // キャンバスの表示位置を制御する部分　画面幅が小さい時は下から、広ければ左から
+            // ---------------------------------------------------------------
+
+
+            const groupEl = document.getElementById('groupDetailOffcanvas'); //HTML側からgroupDetailOffcanvas要素を取得
+            const spotEl = document.getElementById("spotDetailOffcanvas"); //HTML側からspotDetailOffcanvas要素を取得
+            const mql = window.matchMedia('(min-width: 768px)'); //画面幅の切り替え判断するmql
+            // MesiaQueryListについて、メディアの状態を監視するオブジェクト
+            // matchesでbool値を取得できる。イベントリスナーをつけることもできる。
+            function placeCanvas() {
+                groupEl.classList.remove('offcanvas-bottom', 'offcanvas-start');
+                groupEl.classList.add(mql.matches ? 'offcanvas-start' : 'offcanvas-bottom');
+                spotEl.classList.remove('offcanvas-bottom', 'offcanvas-start');
+                spotEl.classList.add(mql.matches ? 'offcanvas-start' : 'offcanvas-bottom');
+            } //画面サイズ変更が検知されると発火 キャンバスの位置クラスを初期化して現状にあったクラスをつける
+            placeCanvas(); //初回実行
+            mql.addEventListener('change', placeCanvas); //mqlにイベントリスナーをつけて監視
+
+
+            // ---------------------------------------------------------------
+            // スポット詳細、グループ詳細を表示するキャンバス作成
+            // ---------------------------------------------------------------
+
+
+            // XSS対策の簡易版
+            function escapeHTML(s) { return String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
+
+            async function renderDetailInto(offcanvasEl, { //キャンバスとたくさんの引数を渡して詳細画面を作る関数
+                mode, // spotかgroupの区別
+                title, // タイトル
+                userName, userIcon, createdAt, // ユーザー情報
+                category, tags = [], // カテゴリーとタグ一覧
+                description, // コメント
+                mainImageUrl, // 画像URL
+                composer = { enabled: true, onSubmit: async () => { } },
+                // 返信投稿機能の設定　呼び出しがわで表示非表示、送信先をコントロールできるようにする
+                loadReplies = null // 返信読み込み関数　これも呼び出し元で表示する内容を変更する
+            }) {
+                const body = offcanvasEl.querySelector('.offcanvas-body'); //キャンバスのbodyを取得　最初は空になってるけど二回目からは中身あり
+                body.innerHTML = ''; //中身を初期化
+
+                // テンプレート複製 cloneNodeがtrueで子要素まで取得、falseで直下のみ
+                // 今後はこのflagの中身をJSで書き換えながら設計書を作り、appendChildで最後に実体化する流れ
+                const frag = document.getElementById('detail-canvas-tmpl').content.cloneNode(true);
+
+                // メイン画像設定（実際の画像またはプレースホルダー）
+                const mainImg = frag.querySelector('.detail-main-image img'); // テンプレートからimg要素を取得
+                if (mainImageUrl) {
+                    mainImg.src = mainImageUrl; // 実際の画像URLが存在する場合は設定
+                } else {
+                    // デフォルト画像（モード別にアイコンを変更）
+                    mainImg.src = mode === 'spot' //JSの厳密等価演算子　==だと緩い比較になって0とfalse,型違いでもtrueになる　推奨は常に===
+                        ? 'https://fontawesome.com/icons/image?f=classic&s=solid' // スポット用：image
+                        : 'https://fontawesome.com/icons/folder?f=classic&s=solid'; // グループ用：folder
+                }
+
+                // タイトル設定　JSの論理和演算子　||  左辺があれば左辺、なければ右辺
+                frag.querySelector('.detail-title').textContent = title || '';
+
+                // ユーザー情報設定（アイコン・名前・日時）
+                const userIconEl = frag.querySelector('.detail-user-icon'); // ユーザーアイコン表示エリアを取得
+                if (userIcon) {
+                    // 実際のユーザーアイコン画像を表示（/uploads/icon/から読み込み）
+                    userIconEl.innerHTML = `<img src="/uploads/icon/${userIcon}" class="user-icon-large" style="width: 32px; height: 32px;">`;
+                } else {
+                    // デフォルトアイコン（FontAwesome）を表示
+                    userIconEl.innerHTML = `<i class="fa-solid fa-circle-user" style="font-size: 32px; color: rgb(99, 99, 99);"></i>`;
+                }
+                frag.querySelector('.detail-user-name').textContent = userName || 'ユーザー'; // ユーザー名を設定（なければ「ユーザー」）
+                frag.querySelector('.detail-created-date').textContent = createdAt || ''; // 作成日時を設定
+
+                // カテゴリーとタグの表示　BSクラスを有効にするためにHTMLとしてリスト化する必要がある
+                const tagsHtml = []; // HTML文字列を格納する配列
+                if (category) {
+                    // カテゴリー別の色分け設定（Bootstrap標準色）
+                    const categoryColors = {
+                        '観光': 'primary',   // primary(BS)=青色
+                        '食事': 'warning',   // warning(BS)=黄色
+                        '体験': 'success',   // success(BS)=緑色
+                        'イベント': 'info',  // info(BS)=水色
+                        '危険': 'danger'     // danger(BS)=赤色
+                    };
+                    // カテゴリーバッジを生成（badge(BS)=バッジスタイル, text-bg-*(BS)=背景色付きテキスト)
+                    tagsHtml.push(`<span class="badge text-bg-${categoryColors[category] || 'secondary'} me-1 mb-1">${category}</span>`);
+                }
+                if (tags && tags.length > 0) {
+                    // タグバッジを生成（カテゴリーと区別するため白背景＋ボーダー, #プレフィックス付き）
+                    // ...はスプレッド構文　リストを展開して一つずつ処理するforループしなくて済む
+                    // mapは配列の要素それぞれに処理を当てる　返り値は配列だからこれをスプレッドで展開してpushする
+                    tagsHtml.push(...tags.map(tag => `<span class="badge text-bg-light text-dark border me-1 mb-1">#${escapeHTML(tag)}</span>`));
+                }
+                frag.querySelector('.detail-tags').innerHTML = tagsHtml.join(''); // 生成したバッジHTMLを挿入
+
+                // 本文設定
+                frag.querySelector('.detail-description').textContent = description || '';
+
+                // アクションボタンの動的生成（カテゴリーによる分岐処理）
+                const actionsEl = frag.querySelector('.detail-actions'); // アクションボタン表示エリア取得
+                const actionButtons = []; // ボタンHTML配列
+                
+                if (category === '危険') {
+                    // 危険カテゴリー専用: お気に入り、solved、違反報告
+                    // hundleActionはクリックしたときの動作　後で関数定義しているが今はアラート表示のみで未実装
+                    actionButtons.push(
+                        `<button class="btn btn-outline-warning btn-sm me-auto" onclick="handleAction('favorite')"><i class="fa-solid fa-star"></i> お気に入り <span class="badge text-bg-secondary">0</span></button>`,
+                        `<button class="btn btn-outline-success btn-sm" onclick="handleAction('solved')"><i class="fa-solid fa-check"></i> 解決済み <span class="badge text-bg-secondary">0</span></button>`,
+                        `<button class="btn btn-outline-secondary btn-sm" onclick="handleAction('report')"><i class="fa-solid fa-flag"></i> 違反報告</button>`
+                    );
+                } else {
+                    // その他カテゴリー専用: お気に入り、good、bad、違反報告
+                    actionButtons.push(
+                        `<button class="btn btn-outline-warning btn-sm me-auto" onclick="handleAction('favorite')"><i class="fa-solid fa-star"></i> お気に入り <span class="badge text-bg-secondary">0</span></button>`,
+                        `<button class="btn btn-outline-success btn-sm" onclick="handleAction('good')"><i class="fa-solid fa-thumbs-up"></i> Good <span class="badge text-bg-secondary">0</span></button>`,
+                        `<button class="btn btn-outline-danger btn-sm" onclick="handleAction('bad')"><i class="fa-solid fa-thumbs-down"></i> Bad <span class="badge text-bg-secondary">0</span></button>`,
+                        `<button class="btn btn-outline-secondary btn-sm" onclick="handleAction('report')"><i class="fa-solid fa-flag"></i> 違反報告</button>`
+                    );
+                }
+                actionsEl.innerHTML = actionButtons.join(''); // 生成したボタンHTMLを挿入
+
+                // 返信入力フォーム設定
+                const comp = frag.querySelector('.detail-composer');
+                if (!composer || composer.enabled === false) {
+                    comp.classList.add('d-none'); //composerがないか無効になっている場合はd-noneで非表示にする
+                } else {
+                    const ta = comp.querySelector('textarea');
+                    const file = comp.querySelector('input[type="file"]');
+                    const btn = comp.querySelector('.composer-submit');
+                    btn.addEventListener('click', async () => {
+                        const text = ta.value.trim(); //空白削除で入力の有無をチェックできるように
+                        const f = file.files[0] || null; //ファイルがなければnull
+                        if (!text && !f) {
+                            alert('コメントまたは画像を入力してください');
+                            return;
+                        } //テキストか画像のどちらかは必須
+                        btn.disabled = true; //ボタンを無効化　二重送信を防止する
+                        btn.textContent = '投稿中...'; //投稿中であることを視覚的に分かるように
+                        try {
+                            await composer.onSubmit({ text, file: f }); //awaitで待機
+                            ta.value = ''; //初期化
+                            file.value = '';
+                            // 覚えておきたい処理　typeofは型を文字列で返す演算子
+                            // つまりここはinjectReplies関数が存在するかの確認
+                            // JSは呼び出し先の関数がないとエラー落ちするのであるか分からない部分はこうする
+                            // 関数ないで分岐でもいいいが、疎結合の方が都合がいい（モジュール間の依存性が少ない）
+                            // 分割しての開発、テストもしやすい
+                            if (typeof injectReplies === 'function') {
+                                await injectReplies(); // 送信後に返信を再読み込み
+                            }
+                            alert('返信を投稿しました');
+                        } catch (error) {
+                            alert('投稿に失敗しました');
+                            console.error(error);
+                        } finally {
+                            btn.disabled = false; //ボタンを再有効化
+                            btn.textContent = '返信を投稿';
+                        }
+                    });
+                }
+
+                // 返信一覧の描画関数
+                const repliesBox = frag.querySelector('.detail-replies');
+                const replyCountEl = frag.querySelector('.detail-reply-count');
+                
+                async function injectReplies() {
+                    if (!loadReplies) {
+                        repliesBox.innerHTML = '<p class="text-muted mb-0">返信機能が無効です</p>';
+                        replyCountEl.textContent = '0';
+                        return;
+                    } // 返信機能が未実装の場合などはこれの処理でエラーハンドリング
+                    
+                    try {
+                        const replies = await loadReplies(); //awaitで読み込み完了まで待機
+                        replyCountEl.textContent = replies.length.toString(); //リプライ要素数を文字列に
+                        
+                        if (replies.length === 0) {
+                            repliesBox.innerHTML = '<p class="text-muted mb-0">まだ返信がありません</p>';
+                            return;
+                        }
+                        
+                        // 各返信のHTML生成
+                        const repliesHtml = replies.map(reply => { //mapメソッドでrepliesの要素を一つずつ処理
+                            const userIconHtml = reply.user_icon //ユーザーアイコンがなければデフォルト表示
+                                ? `<img src="/uploads/icon/${reply.user_icon}" class="reply-user-icon" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;">`
+                                : `<i class="fa-solid fa-circle-user reply-user-icon" style="font-size: 28px; color: rgb(99, 99, 99);"></i>`;
+                            
+                            const imageHtml = reply.imageUrl //画像がなければ空白
+                                ? `<div class="mb-2" style="margin-left: 36px;"><img src="${reply.imageUrl}" style="max-width: 100%; height: auto;"></div>` 
+                                : '';
+                            
+                            //返信のリアクションボタン
+                            const replyActions = `
+                                <button class="btn btn-outline-success btn-xs" onclick="handleReplyAction('good', ${reply.id})"><i class="fa-solid fa-thumbs-up"></i> <span class="badge text-bg-secondary">0</span></button>
+                                <button class="btn btn-outline-danger btn-xs" onclick="handleReplyAction('bad', ${reply.id})"><i class="fa-solid fa-thumbs-down"></i> <span class="badge text-bg-secondary">0</span></button>
+                                <button class="btn btn-outline-secondary btn-xs" onclick="handleReplyAction('report', ${reply.id})"><i class="fa-solid fa-flag"></i> 違反報告</button>
+                            `;
+                            
+                            //各返信のHTMLテンプレート生成
+                            return /*HTML*/`
+                                <div class="mb-4 pb-3 border-bottom" style="border-color: #f8f9fa !important;">
+                                    <div class="d-flex align-items-start mb-2">
+                                        <div class="me-2" style="flex-shrink: 0.5;">${userIconHtml}</div>
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span style="font-weight: 500; font-size: 14px;">${escapeHTML(reply.user_name || 'ユーザー')}</span>
+                                                <span class="text-body-secondary" style="font-size: 12px;">${reply.date || ''}</span>
+                                            </div>
+                                            <div class="mb-2" style="font-size: 14px; line-height: 1.4; white-space: pre-wrap;">${escapeHTML(reply.comment || '')}</div>
+                                            ${imageHtml}
+                                            <div class="d-flex gap-1">${replyActions}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join(''); //生成された返信HTMLを結合
+                        
+                        repliesBox.innerHTML = repliesHtml;
+                    } catch (error) {
+                        repliesBox.innerHTML = '<p class="text-danger mb-0">返信の読み込みに失敗しました</p>';
+                        replyCountEl.textContent = '0';
+                        console.error('Error loading replies:', error);
+                    }
+                }
+
+                // 初期返信読み込み
+                await injectReplies();
+
+                // offcanvasのbodyに完成したテンプレを挿入
+                body.appendChild(frag);
+                // 実際に表示
+                bootstrap.Offcanvas.getOrCreateInstance(offcanvasEl).show();
+            }
+
+
+            // ---------------------------------------------------------------
+            // spot表示、削除
+            // ---------------------------------------------------------------
+
+
+            // URLパラメータからgroup_idを取得して自動読み込み
+            // 今はグループ表示は直接URL指定でアクセスした場合のみ（QRコード利用想定）
+            {% if group_id %}
+                map.on('load', () => loadGroup({{ group_id }}));
+                // mapbox標準のイベントリスナーmap.on マップ読み込み完了後にピン表示
+            {% endif %}
+
+            let lastCenter = map.getCenter(); //移動距離計算用の変数の初期値
+            let timeoutId; //spotの取得が連続して行われないようにするためのタイマー変数
+
+            map.on('moveend', () => { //mapbox標準機能 中心位置が動いたら発火
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    const currentCenter = map.getCenter(); //中心座標取得
+                    const distance = currentCenter.distanceTo(lastCenter); //移動距離計算
+                    if (distance > 100) { // 100m以上移動した場合
+                        loadSpots(currentCenter); //spot更新
+                        lastCenter = currentCenter;
+                    }
+                }, 1000); //1秒は最低空ける
+            });
+
+            let markers = []; //ピンを置く地点の初期化
+            let selectedMarker = null; //選択されているマーカー
+            const catColors = { "観光": "blue", "食事": "#ffcc00", "体験": "green", "イベント": "purple", "危険": "red" }; //カテゴリーごとにピンの色を指定
+
+            // spot読み込み関数
+            function loadSpots(center) {
+                const zoom = map.getZoom();
+                const radius = Math.max(0.5, Math.pow(2, 16 - zoom) * 0.8); // 最小0.5km、ズームに応じて調整
+                fetch('/spots', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat: center.lat, lng: center.lng, radius })
+                })
+                .then(r => r.json()) //json形式を変換
+                .then(spots => { clearMarkers(); renderSpots(spots); }); //初期化して表示
+            }
+
+            function clearMarkers() { markers.forEach(m => m.remove()); markers = []; }
+            //現座のピンを削除 markers=[]だけだと表示されたピンが残り続けるからremoveが必須
+
+            function renderSpots(spots) {
+                spots.forEach((spot) => {
+                    const mk = new mapboxgl.Marker({ color: catColors[spot.category] }) //上で指定したカテゴリ別の色を設定
+                        .setLngLat([spot.lng, spot.lat]) //mapboxは経度緯度の順番　注意！
+                        .addTo(map);
+                    mk.getElement().style.cursor = "pointer"; //オンカーソル時のポインタを変更
+                    mk.getElement().addEventListener("click", () => selectSpot(spot, mk)); //クリック時のイベントリスナー
+                    mk.spotData = spot; // 参照用
+                    markers.push(mk);
+                });
+            }
+
+            function selectSpot(spot, marker) {
+                // 前回選択されたマーカーをリセット　大きさと重なり順
+                if (selectedMarker) { selectedMarker.getElement().style.transform = ''; selectedMarker.getElement().style.zIndex = ''; }
+                // 新しいマーカーを選択状態に
+                selectedMarker = marker; marker.getElement().style.transform = 'scale(1.3)'; marker.getElement().style.zIndex = '1000';
+                // マップを中央に移動（スムーズアニメーション） durationはアニメーション時間を指定する
+                map.flyTo({ center: [spot.lng, spot.lat], duration: 800 });
+                // 詳細を表示
+                openDetail(spot);
+            }
+
+            // 初回読み込み
+            loadSpots(map.getCenter());
+
+
+            // ---------------------------------------------------------------
+            // spot詳細表示（共有テンプレートで描画）
+            // ---------------------------------------------------------------
+
+
+            // スポット詳細表示
+            async function openDetail(spot) {
+                const offcanvas = document.getElementById('spotDetailOffcanvas');
+
+                // スポット画像URL生成（存在する場合）
+                let mainImageUrl = null;
+                if (spot.images && spot.images.length > 0) {
+                    mainImageUrl = `/uploads/spot/${spot.images[0]}`;
+                }
+
+                // クリックしたスポット情報で詳細画面を作成
+                await renderDetailInto(offcanvas, {
+                    mode: 'spot',
+                    title: spot.title,
+                    userName: spot.user_name,
+                    userIcon: spot.user_icon,
+                    createdAt: spot.date,
+                    category: spot.category,
+                    tags: spot.tags || [],
+                    description: spot.comment || '',
+                    mainImageUrl,
+                    composer: {
+                        enabled: true,
+                        onSubmit: async ({ text, file }) => {
+                            const fd = new FormData();
+                            fd.append('comment', text);
+                            if (file) fd.append('image', file);
+                            const response = await fetch(`/spots/${spot.id}/replies`, { method: 'POST', body: fd });
+                            if (!response.ok) throw new Error('返信の投稿に失敗しました');
+                        } //submit時の挙動を指示　コメントと画像ファイルを返信投稿用エンドポイントにfetch
+                    },
+                    loadReplies: async () => {
+                        const response = await fetch(`/spots/${spot.id}/replies`);
+                        if (!response.ok) throw new Error('返信の読み込みに失敗しました');
+                        return await response.json();
+                    } //返信欄に読み込むエンドポイントを指示
+                });
+
+                // 詳細画面が閉じられた時の処理
+                offcanvas.addEventListener('hidden.bs.offcanvas', () => {
+                    if (selectedMarker) {
+                        selectedMarker.getElement().style.transform = '';
+                        selectedMarker.getElement().style.zIndex = '';
+                        selectedMarker = null;
+                    } //選択されていたマーカーの強調を解除
+                }, { once: true }); //今回は新規キャンバスを作るたびにイベントリスナーをつけているからonce:trueで毎回解除する必要がある
+            }
+
+            // ---------------------------------------------------------------
+            // 右下のスポット登録ボタンの挙動
+            // ---------------------------------------------------------------
+
+            const addBtn = document.getElementById('addSpotBtn');
+            const cancelBtn = document.getElementById('addSpotCancelBtn');
+            const confirmBtn = document.getElementById('confirmSpotBtn');
+            const crosshair = document.getElementById('targetCrosshair');
+            const coordDisplay = document.getElementById('coordDisplay');
+            const spotModal = new bootstrap.Modal(document.getElementById('spotModal'));
+
+            let targeting = false; //最初はクロスヘアマーカーは出さないのでfalse
+
+            function enterTargeting() { targeting = true; crosshair.classList.remove('d-none'); confirmBtn.classList.remove('d-none'); addBtn.classList.add('d-none'); cancelBtn.classList.remove('d-none'); }
+            function exitTargeting() { targeting = false; crosshair.classList.add('d-none'); confirmBtn.classList.add('d-none'); cancelBtn.classList.add('d-none'); addBtn.classList.remove('d-none'); }
+
+            addBtn.addEventListener('click', () => enterTargeting());   // ＋ボタン：ターゲット表示
+            cancelBtn.addEventListener('click', () => exitTargeting()); // キャンセル：ターゲット解除
+
+            // 確定：中心座標を取得してモーダル表示
+            confirmBtn.addEventListener('click', () => {
+                const coords = map.getCenter(); // {lng,lat}
+                coordDisplay.textContent = `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+                document.getElementById('spotForm').reset(); // 入力フォームをリセットする
+                spotModal.show(); // モーダル表示
+                exitTargeting();
+            });
+
+            // spot登録ボタン
+            document.getElementById('submitSpotBtn').addEventListener('click', () => {
+                const formData = new FormData();
+                // 座標情報
+                const [lat, lng] = coordDisplay.textContent.split(', ').map(Number);
+                // 入力
+                formData.append('title', document.getElementById('spotTitle').value);
+                formData.append('comment', document.getElementById('spotComment').value);
+                formData.append('category', document.getElementById('spotCategory').value);
+                formData.append('tag1', document.getElementById('spotTag1').value);
+                formData.append('tag2', document.getElementById('spotTag2').value);
+                formData.append('tag3', document.getElementById('spotTag3').value);
+                formData.append('tag4', document.getElementById('spotTag4').value);
+                formData.append('tag5', document.getElementById('spotTag5').value);
+                formData.append('lat', lat); formData.append('lng', lng);
+                // 画像
+                const imageFile = document.getElementById('spotImage').files[0];
+                if (imageFile) formData.append('image', imageFile);
+                // 送信
+                fetch('/spots/create', { method: 'POST', body: formData })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            spotModal.hide();            // モーダルを閉じる
+                            loadSpots(map.getCenter());  // spotリストを再読み込み
+                            alert('スポットを登録しました！');
+                        } else {
+                            alert('エラー: ' + (data.error || '登録に失敗しました'));
+                        }
+                    })
+                    .catch(err => { alert('通信エラーが発生しました'); console.error(err); });
+            });
+
+            // ---------------------------------------------------------------
+            // グループ詳細の読み込みと表示（共有テンプレートで描画）
+            // ---------------------------------------------------------------
+
+            // グループ詳細表示（挙動はスポットと同様）
+            async function loadGroup(groupId) {
+                try {
+                    const res = await fetch(`/groups/${groupId}`);
+                    if (!res.ok) throw new Error('グループの取得に失敗しました'); //レスポンスがokでなければエラー
+                    
+                    const data = await res.json(); //json形式のレスポンスを変換
+                    if (data.error) {
+                        alert('エラー: ' + data.error);
+                        return;
+                    }
+
+                    const group = data.group;
+
+                    // グループ内のスポットを地図上に表示
+                    clearMarkers();
+                    renderSpots(data.spots);
+
+                    // グループ画像URL生成（存在する場合）
+                    let mainImageUrl = null;
+                    if (group.images && group.images.length > 0) {
+                        mainImageUrl = `/uploads/group/${group.images[0]}`;
+                    }
+
+                    // グループ詳細を表示
+                    await renderDetailInto(document.getElementById('groupDetailOffcanvas'), {
+                        mode: 'group',
+                        title: group.title,
+                        userName: group.user_name,
+                        userIcon: group.user_icon,
+                        createdAt: group.date,
+                        category: group.category, // グループにもカテゴリーがある場合
+                        tags: group.tags || [],
+                        description: group.description || '',
+                        mainImageUrl,
+                        composer: {
+                            enabled: true,
+                            onSubmit: async ({ text, file }) => {
+                                const fd = new FormData();
+                                fd.append('comment', text);
+                                if (file) fd.append('image', file);
+                                const response = await fetch(`/groups/${groupId}/replies`, { method: 'POST', body: fd });
+                                if (!response.ok) throw new Error('返信の投稿に失敗しました');
+                            }
+                        },
+                        loadReplies: async () => {
+                            const response = await fetch(`/groups/${groupId}/replies`);
+                            if (!response.ok) throw new Error('返信の読み込みに失敗しました');
+                            return await response.json();
+                        }
+                    });
+
+                    // 現在のグループID記録
+                    window.currentGroupId = groupId;
+
+                } catch (err) {
+                    alert('通信エラーが発生しました');
+                    console.error('Error loading group:', err);
+                }
+            }
+
+
+            // ---------------------------------------------------------------
+            // アクションボタンのイベントハンドラ（とりあえず見た目のみ実装）
+            // ---------------------------------------------------------------
+
+
+            // スポット/グループのアクションハンドラ
+            // window.に代入することでグローバル関数として、HTML内のonclick属性から呼び出し可能にする
+            window.handleAction = function(action) {
+                switch(action) {
+                    case 'favorite': // お気に入り機能
+                        alert('お気に入り機能（未実装）');
+                        break;
+                    case 'good': // Good評価機能
+                        alert('Good機能（未実装）');
+                        break;
+                    case 'bad': // Bad評価機能
+                        alert('Bad機能（未実装）');
+                        break;
+                    case 'solved': // 解決済みマーク機能（危険カテゴリー専用）
+                        alert('解決済み機能（未実装）');
+                        break;
+                    case 'report': // 違反報告機能
+                        alert('違反報告機能（未実装）');
+                        break;
+                    default:
+                        console.log('Unknown action:', action); // 不明なアクションのデバッグ出力
+                }
+            };
+            
+            // 返信のアクションハンドラ
+            // 返信個別に対するリアクション機能
+            window.handleReplyAction = function(action, replyId) {
+                switch(action) {
+                    case 'good': // 返信へのGood評価
+                        alert(`返信${replyId}にGood（未実装）`);
+                        break;
+                    case 'bad': // 返信へのBad評価
+                        alert(`返信${replyId}にBad（未実装）`);
+                        break;
+                    case 'report': // 返信の違反報告
+                        alert(`返信${replyId}を違反報告（未実装）`);
+                        break;
+                    default:
+                        console.log('Unknown reply action:', action, 'for reply:', replyId); // デバッグ出力
+                }
+            };
+
+        }); // DOMContentLoaded 終了
+
+
+        // ---------------------------------------------------------------
+        // ログアウト
+        // ---------------------------------------------------------------
+
+
+        // ログアウト確認機能
+        function confirmLogout() {
+            if (confirm('ログアウトしますか？')) {
+                window.location.href = '{{ url_for("auth.logout") }}';
+            }
+        }
+    </script>
+</body>
+
+</html>

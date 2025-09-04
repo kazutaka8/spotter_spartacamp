@@ -32,7 +32,7 @@
                                 </div>
                         {% endfor %}
 
-                        <form method="POST"> {# 現在のURLにPOST表示するform作成 以下ログイン画面と同様#}
+                        <form method="POST" enctype="multipart/form-data"> {# 現在のURLにPOST表示するform作成 以下ログイン画面と同様#}
                             <div class="mb-3">
                                 <label for="name" class="form-label">ユーザー名</label>
                                 <input type="text" class="form-control" id="name" name="name" required>
@@ -49,6 +49,10 @@
                                 <label for="password_confirm" class="form-label">パスワード確認</label>
                                 <input type="password" class="form-control" id="password_confirm"
                                     name="password_confirm" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="icon" class="form-label">アイコン画像 (オプション)</label>
+                                <input type="file" class="form-control" id="icon" name="icon" accept="image/*">
                             </div>
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary">アカウント作成</button>

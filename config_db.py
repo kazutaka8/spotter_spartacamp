@@ -110,6 +110,8 @@ class SpotSolved(Model):
 
 class Group(Model):
     id = IntegerField(primary_key=True)
+    title = CharField(max_length=128)
+    description = TextField(null=True)
     user = ForeignKeyField(User, backref="groups", on_delete="RESTRICT")
     lat = DoubleField()
     lon = DoubleField()
@@ -125,7 +127,7 @@ class Group(Model):
 
 
 class GroupImage(Model):
-    reply = ForeignKeyField(Group, backref="images", on_delete="CASCADE")
+    group = ForeignKeyField(Group, backref="images", on_delete="CASCADE")  # 【修正】reply → group に変更
     path = CharField(max_length=512)
 
     class Meta:
@@ -177,6 +179,7 @@ class Reply(Model):
     id = IntegerField(primary_key=True)
     spot = ForeignKeyField(Spot, backref="replies", null=True, on_delete="SET NULL")
     group = ForeignKeyField(Group, backref="replies", null=True, on_delete="SET NULL")
+    user = ForeignKeyField(User, backref="replies", on_delete="RESTRICT")
     comment = TextField()
     date = TimestampField(default=_now)
     deleted_at = TimestampField(null=True)
@@ -220,6 +223,7 @@ def create_tables():
             SpotBad,
             SpotSolved,
             Group,
+            GroupImage,  # 【追加】GroupImageテーブルをテーブル作成リストに追加
             GroupSpot,
             GroupTag,
             GroupGood,
