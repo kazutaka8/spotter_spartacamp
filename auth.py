@@ -56,27 +56,26 @@ def register():
             temp_filename = f"user_temp_{timestamp}{file_ext}"
             file_path = os.path.join(icon_dir, temp_filename)
             uploaded_file.save(file_path)
-            icon_filename = temp_filename
 
         try:
             user = User.create(
                 name=name,
                 email=email,
                 password_hash=generate_password_hash(password),
-                icon=icon_filename,
+                icon=temp_filename,
                 deleted_at=None,  # 明示的にNoneを入れないと謎の時刻が入る　なぜ？
             )
 
             # アイコンファイル名をuser_idを含む名前に変更
-            if icon_filename:
-                new_filename = f"user_{user.id}_{timestamp}{file_ext}"
+            if temp_filename:
+                icon_filename = f"user_{user.id}_{timestamp}{file_ext}"
                 old_path = os.path.join(icon_dir, temp_filename)
-                new_path = os.path.join(icon_dir, new_filename)
+                new_path = os.path.join(icon_dir, icon_filename)
 
                 try:
                     os.rename(old_path, new_path)  # ファイル名変更
                     # DBのicon値を更新
-                    user.icon = new_filename
+                    user.icon = icon_filename
                     user.save()
                 except OSError:
                     # ファイル名変更失敗時は元のテンポラリファイルを削除
