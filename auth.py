@@ -14,6 +14,7 @@ bp_auth = Blueprint("auth", __name__)
 
 @bp_auth.route("/register", methods=["GET", "POST"])
 def register():
+
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip()
@@ -39,8 +40,11 @@ def register():
         icon_filename = None
         uploaded_file = request.files.get("icon")
         if uploaded_file and uploaded_file.filename:
+            # 初回保存時は元ファイル名が使われるので、安全な名前に変更する
             filename = secure_filename(uploaded_file.filename)
+            # 拡張子を取得する
             file_ext = os.path.splitext(filename)[1]
+            # string format timeデータタイムを指定したフォーマットで文字列に
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
             # iconフォルダを作成
@@ -93,12 +97,15 @@ def login():
 
     if request.method == "POST":
         email = request.form.get("email", "").strip()
+        # パスワードにはstripなし（意図的に入れた文字や空白まで削除される可能性）
         password = request.form.get("password", "")
 
+        # emailとpassword必須
         if not email or not password:
             flash("メールアドレスとパスワードを入力してください")
             return redirect(request.url)
 
+        # emailで既存ユーザーを取得　パスワードをハッシュ化して比較
         user = User.select().where(User.email == email).first()
         if user is not None and check_password_hash(user.password_hash, password):
             login_user(user)
