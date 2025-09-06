@@ -176,7 +176,9 @@
         {# あとで表示させるクロスヘアーマーカー 中央配置中央寄せ、非表示設定 アイコン上でもマップのドラッグを有効　画面の前後順IDを指定 #}
         {# translate-middleがないと画像の左上が画面中央にくる #}
 
-        <div class="position-absolute bottom-0 end-0 mb-4 me-3" style="z-index:5;">
+        {# <div class="position-absolute bottom-0 end-0 mb-4 me-3" style="z-index:5;"> #}
+        {# 以下はスマホ用に調整した配置　元のままだと下のコントロールバーに隠れてしまう #}
+        <div id="spotControls" class="position-fixed end-0 me-3" style="z-index:5; right: 12px; bottom: calc(env(safe-area-inset-bottom, 0px) + 4dvh);">
             <button id="addSpotCancelBtn" class="btn btn-secondary shadow d-none">キャンセル</button>
             <button id="addSpotBtn" class="btn btn-primary rounded-circle shadow" style="width:48px;height:48px;">
                 <i class="fa-solid fa-plus"></i>
