@@ -1,6 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import current_user, login_required
-from peewee import JOIN
 import math
 import os
 from datetime import datetime
@@ -101,7 +100,7 @@ def get_spots():
                 }
             )
 
-        # 100件で制限
+        # 100件で制限（現状意味はないが）
         if len(spot_list) >= 100:
             break
 
@@ -209,9 +208,7 @@ def create_spot():
 @bp_view.route("/spots/<int:spot_id>/replies", methods=["GET"])
 def get_replies(spot_id):
     replies = (
-        Reply.select()
-        .where(Reply.spot == spot_id, Reply.deleted_at.is_null())
-        .order_by(Reply.date.desc())
+        Reply.select().where(Reply.spot == spot_id, Reply.deleted_at.is_null()).order_by(Reply.date.desc())
     )
 
     reply_list = []
@@ -222,14 +219,16 @@ def get_replies(spot_id):
         reply_images = list(reply.images)
         image_url = f"/uploads/reply/{reply_images[0].path}" if reply_images else None
 
-        reply_list.append({
-            "id": reply.id,
-            "comment": reply.comment,
-            "user_name": reply.user.name,
-            "user_icon": reply.user.icon,
-            "date": reply.date.strftime("%Y-%m-%d %H:%M"),
-            "imageUrl": image_url,
-        })
+        reply_list.append(
+            {
+                "id": reply.id,
+                "comment": reply.comment,
+                "user_name": reply.user.name,
+                "user_icon": reply.user.icon,
+                "date": reply.date.strftime("%Y-%m-%d %H:%M"),
+                "imageUrl": image_url,
+            }
+        )
 
     return jsonify(reply_list)
 
@@ -329,6 +328,8 @@ def get_group(group_id):
                 "tags": group_tags,
                 "is_public": group.is_public,
                 "images": group_images,
+                "lat": group.lat,
+                "lon": group.lon,
             },
             "spots": spots,
         }

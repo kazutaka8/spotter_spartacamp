@@ -681,8 +681,14 @@
                     const mk = new mapboxgl.Marker({ color: catColors[spot.category] }) //上で指定したカテゴリ別の色を設定
                         .setLngLat([spot.lng, spot.lat]) //mapboxは経度緯度の順番　注意！
                         .addTo(map);
-                    mk.getElement().style.cursor = "pointer"; //オンカーソル時のポインタを変更
-                    mk.getElement().addEventListener("click", () => selectSpot(spot, mk)); //クリック時のイベントリスナー
+                    const el = mk.getElement();
+                    // ホバー時にタイトルを表示（Mapbox Popup）。離脱で確実に消す。
+                    const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 10 })
+                        .setText(spot.title || '');
+                    el.addEventListener('mouseenter', () => { popup.setLngLat([spot.lng, spot.lat]).addTo(map);});
+                    el.addEventListener('mouseleave', () => { popup.remove();});
+                    el.style.cursor = "pointer";
+                    el.addEventListener("click", () => selectSpot(spot, mk));
                     mk.spotData = spot; // 参照用
                     markers.push(mk);
                 });
@@ -827,7 +833,7 @@
                 try {
                     const res = await fetch(`/groups/${groupId}`);
                     if (!res.ok) throw new Error('グループの取得に失敗しました'); //レスポンスがokでなければエラー
-                    
+
                     const data = await res.json(); //json形式のレスポンスを変換
                     if (data.error) {
                         alert('エラー: ' + data.error);
@@ -835,6 +841,8 @@
                     }
 
                     const group = data.group;
+
+                    map.flyTo({ center: [group.lon, group.lat], zoom: 17, duration: 800 });
 
                     // グループ内のスポットを地図上に表示
                     clearMarkers();
